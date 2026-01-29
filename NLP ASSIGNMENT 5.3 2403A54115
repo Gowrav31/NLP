@@ -1,0 +1,597 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOxK7hP2pg2ZvAWI7X/UhOa",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/Gowrav31/NLP/blob/main/NLP%20ASSIGNMENT%205.3%202403A54115\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "je2PgHVG9y1L"
+      },
+      "outputs": [],
+      "source": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "71167d51",
+        "outputId": "e504ecd5-9fa9-4c1b-d176-d0b5f2e0d777"
+      },
+      "source": [
+        "import pandas as pd # For data manipulation and handling DataFrames\n",
+        "import numpy as np # For numerical operations, especially with arrays\n",
+        "import re # For regular expressions, useful for text cleaning\n",
+        "from nltk.corpus import stopwords # For removing common words that don't carry much meaning\n",
+        "from nltk.stem import WordNetLemmatizer # For lemmatization (reducing words to their base form)\n",
+        "from nltk.tokenize import word_tokenize # For splitting text into individual words\n",
+        "from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer # For creating document-term matrix and TF-IDF matrix\n",
+        "from sklearn.decomposition import LatentDirichletAllocation, NMF # For LDA and NMF topic modeling\n",
+        "import matplotlib.pyplot as plt # For creating static, interactive, and animated visualizations\n",
+        "import seaborn as sns # For statistical data visualization\n",
+        "\n",
+        "print(\"Libraries imported successfully.\")"
+      ],
+      "execution_count": 1,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Libraries imported successfully.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "b383aac3",
+        "outputId": "659ad3eb-5e0d-4d61-ed11-823f39f3d838"
+      },
+      "source": [
+        "from sklearn.datasets import fetch_20newsgroups\n",
+        "\n",
+        "# Load the 20 Newsgroups dataset\n",
+        "newsgroups = fetch_20newsgroups(subset='all', remove=('headers', 'footers', 'quotes'))\n",
+        "data = pd.DataFrame({'text': newsgroups.data, 'target': newsgroups.target})\n",
+        "\n",
+        "# Display the first few rows and check the number of documents\n",
+        "print(f\"Number of documents: {len(data)}\")\n",
+        "print(\"First 5 rows of the dataset:\")\n",
+        "print(data.head())\n"
+      ],
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Number of documents: 18846\n",
+            "First 5 rows of the dataset:\n",
+            "                                                text  target\n",
+            "0  \\n\\nI am sure some bashers of Pens fans are pr...      10\n",
+            "1  My brother is in the market for a high-perform...       3\n",
+            "2  \\n\\n\\n\\n\\tFinally you said what you dream abou...      17\n",
+            "3  \\nThink!\\n\\nIt's the SCSI card doing the DMA t...       3\n",
+            "4  1)    I have an old Jasmine drive which I cann...       4\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "f06d8884",
+        "outputId": "892e4668-a86b-4565-f5b0-a5197a1984a1"
+      },
+      "source": [
+        "import nltk\n",
+        "nltk.download('stopwords')\n",
+        "nltk.download('wordnet')\n",
+        "nltk.download('punkt')\n",
+        "\n",
+        "print(\"NLTK resources downloaded.\")"
+      ],
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "[nltk_data] Downloading package stopwords to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping corpora/stopwords.zip.\n",
+            "[nltk_data] Downloading package wordnet to /root/nltk_data...\n",
+            "[nltk_data] Downloading package punkt to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping tokenizers/punkt.zip.\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "NLTK resources downloaded.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "45105d22",
+        "outputId": "ca582ee9-1dff-4b77-d63b-cdd1afb262dc"
+      },
+      "source": [
+        "lemmatizer = WordNetLemmatizer()\n",
+        "stop_words = set(stopwords.words('english'))\n",
+        "\n",
+        "def preprocess_text(text):\n",
+        "    # Convert to lowercase\n",
+        "    text = text.lower()\n",
+        "    # Remove numbers and punctuation\n",
+        "    text = re.sub(r'[^a-zA-Z\\s]', '', text)\n",
+        "    # Tokenize words\n",
+        "    tokens = word_tokenize(text)\n",
+        "    # Remove stopwords and lemmatize\n",
+        "    processed_tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]\n",
+        "    # Join processed words back into a string\n",
+        "    return ' '.join(processed_tokens)\n",
+        "\n",
+        "# Apply the preprocessing function to the 'text' column\n",
+        "data['processed_text'] = data['text'].apply(preprocess_text)\n",
+        "\n",
+        "# Display the first few entries of the original and processed text\n",
+        "print(\"Original vs. Processed Text (first 5 entries):\")\n",
+        "for i in range(5):\n",
+        "    print(f\"\\nOriginal: {data['text'][i][:100]}...\")\n",
+        "    print(f\"Processed: {data['processed_text'][i][:100]}...\")\n",
+        "\n",
+        "print(\"Text preprocessing complete and 'processed_text' column added.\")"
+      ],
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Original vs. Processed Text (first 5 entries):\n",
+            "\n",
+            "Original: \n",
+            "\n",
+            "I am sure some bashers of Pens fans are pretty confused about the lack\n",
+            "of any kind of posts about ...\n",
+            "Processed: sure bashers pen fan pretty confused lack kind post recent pen massacre devil actually bit puzzled b...\n",
+            "\n",
+            "Original: My brother is in the market for a high-performance video card that supports\n",
+            "VESA local bus with 1-2M...\n",
+            "Processed: brother market highperformance video card support vesa local bus mb ram anyone suggestionsideas diam...\n",
+            "\n",
+            "Original: \n",
+            "\n",
+            "\n",
+            "\n",
+            "\tFinally you said what you dream about. Mediterranean???? That was new....\n",
+            "\tThe area will be \"gr...\n",
+            "Processed: finally said dream mediterranean new area greater year like holocaust number ist july usa sweden apr...\n",
+            "\n",
+            "Original: \n",
+            "Think!\n",
+            "\n",
+            "It's the SCSI card doing the DMA transfers NOT the disks...\n",
+            "\n",
+            "The SCSI card can do DMA trans...\n",
+            "Processed: think scsi card dma transfer disk scsi card dma transfer containing data scsi device attached want i...\n",
+            "\n",
+            "Original: 1)    I have an old Jasmine drive which I cannot use with my new system.\n",
+            " My understanding is that I...\n",
+            "Processed: old jasmine drive use new system understanding upsate driver modern one order gain compatability sys...\n",
+            "Text preprocessing complete and 'processed_text' column added.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "1b4e78e2",
+        "outputId": "df6269b9-55b7-41dd-aea2-53372fda716f"
+      },
+      "source": [
+        "nltk.download('punkt_tab') # Download punkt_tab resource specifically\n",
+        "\n",
+        "lemmatizer = WordNetLemmatizer()\n",
+        "stop_words = set(stopwords.words('english'))\n",
+        "\n",
+        "def preprocess_text(text):\n",
+        "    # Convert to lowercase\n",
+        "    text = text.lower()\n",
+        "    # Remove numbers and punctuation\n",
+        "    text = re.sub(r'[^a-zA-Z\\s]', '', text)\n",
+        "    # Tokenize words\n",
+        "    tokens = word_tokenize(text)\n",
+        "    # Remove stopwords and lemmatize\n",
+        "    processed_tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]\n",
+        "    # Join processed words back into a string\n",
+        "    return ' '.join(processed_tokens)\n",
+        "\n",
+        "# Apply the preprocessing function to the 'text' column\n",
+        "data['processed_text'] = data['text'].apply(preprocess_text)\n",
+        "\n",
+        "# Display the first few entries of the original and processed text\n",
+        "print(\"Original vs. Processed Text (first 5 entries):\")\n",
+        "for i in range(5):\n",
+        "    print(f\"\\nOriginal: {data['text'][i][:100]}...\")\n",
+        "    print(f\"Processed: {data['processed_text'][i][:100]}...\")\n",
+        "\n",
+        "print(\"Text preprocessing complete and 'processed_text' column added.\")"
+      ],
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "[nltk_data] Downloading package punkt_tab to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping tokenizers/punkt_tab.zip.\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Original vs. Processed Text (first 5 entries):\n",
+            "\n",
+            "Original: \n",
+            "\n",
+            "I am sure some bashers of Pens fans are pretty confused about the lack\n",
+            "of any kind of posts about ...\n",
+            "Processed: sure bashers pen fan pretty confused lack kind post recent pen massacre devil actually bit puzzled b...\n",
+            "\n",
+            "Original: My brother is in the market for a high-performance video card that supports\n",
+            "VESA local bus with 1-2M...\n",
+            "Processed: brother market highperformance video card support vesa local bus mb ram anyone suggestionsideas diam...\n",
+            "\n",
+            "Original: \n",
+            "\n",
+            "\n",
+            "\n",
+            "\tFinally you said what you dream about. Mediterranean???? That was new....\n",
+            "\tThe area will be \"gr...\n",
+            "Processed: finally said dream mediterranean new area greater year like holocaust number ist july usa sweden apr...\n",
+            "\n",
+            "Original: \n",
+            "Think!\n",
+            "\n",
+            "It's the SCSI card doing the DMA transfers NOT the disks...\n",
+            "\n",
+            "The SCSI card can do DMA trans...\n",
+            "Processed: think scsi card dma transfer disk scsi card dma transfer containing data scsi device attached want i...\n",
+            "\n",
+            "Original: 1)    I have an old Jasmine drive which I cannot use with my new system.\n",
+            " My understanding is that I...\n",
+            "Processed: old jasmine drive use new system understanding upsate driver modern one order gain compatability sys...\n",
+            "Text preprocessing complete and 'processed_text' column added.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 106
+        },
+        "id": "6a1b5754",
+        "outputId": "5245f858-6cae-4439-84a4-45062268541e"
+      },
+      "source": [
+        "## Create Document-Term and TF-IDF Matrices\n",
+        "\n",
+        "### Subtask:\n",
+        "Create a Document-Term Matrix (DTM) using `CountVectorizer` and a TF-IDF Matrix using `TfidfVectorizer` from the preprocessed text. Explain the purpose and characteristics of each matrix."
+      ],
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "SyntaxError",
+          "evalue": "invalid syntax (ipython-input-3726964228.py, line 4)",
+          "traceback": [
+            "\u001b[0;36m  File \u001b[0;32m\"/tmp/ipython-input-3726964228.py\"\u001b[0;36m, line \u001b[0;32m4\u001b[0m\n\u001b[0;31m    Create a Document-Term Matrix (DTM) using `CountVectorizer` and a TF-IDF Matrix using `TfidfVectorizer` from the preprocessed text. Explain the purpose and characteristics of each matrix.\u001b[0m\n\u001b[0m           ^\u001b[0m\n\u001b[0;31mSyntaxError\u001b[0m\u001b[0;31m:\u001b[0m invalid syntax\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "da8d4240",
+        "outputId": "b5294300-dc15-428a-9cfc-8ab697d4bcba"
+      },
+      "source": [
+        "from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer\n",
+        "\n",
+        "# 1. Instantiate a CountVectorizer object\n",
+        "count_vectorizer = CountVectorizer(max_df=0.95, min_df=2)\n",
+        "\n",
+        "# 2. Fit and transform to create the Document-Term Matrix (DTM)\n",
+        "dtm = count_vectorizer.fit_transform(data['processed_text'])\n",
+        "\n",
+        "# 3. Instantiate a TfidfVectorizer object\n",
+        "tfidf_vectorizer = TfidfVectorizer(max_df=0.95, min_df=2)\n",
+        "\n",
+        "# 4. Fit and transform to create the TF-IDF Matrix\n",
+        "tfidf_matrix = tfidf_vectorizer.fit_transform(data['processed_text'])\n",
+        "\n",
+        "# 5. Print the shape of both matrices\n",
+        "print(f\"Shape of Document-Term Matrix (DTM): {dtm.shape}\")\n",
+        "print(f\"Shape of TF-IDF Matrix: {tfidf_matrix.shape}\")"
+      ],
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Shape of Document-Term Matrix (DTM): (18846, 40926)\n",
+            "Shape of TF-IDF Matrix: (18846, 40926)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "06e88107",
+        "outputId": "b476185b-5d50-4a9c-ac8f-e216a9c46299"
+      },
+      "source": [
+        "n_components = 10 # Number of topics to extract\n",
+        "lda_model = LatentDirichletAllocation(n_components=n_components, random_state=42)\n",
+        "\n",
+        "# Fit the LDA model to the Document-Term Matrix (DTM)\n",
+        "lda_model.fit(dtm)\n",
+        "\n",
+        "print(f\"LDA model fitted with {n_components} components.\")\n",
+        "print(f\"Shape of topic-word distribution (components_): {lda_model.components_.shape}\")"
+      ],
+      "execution_count": 25,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "LDA model fitted with 10 components.\n",
+            "Shape of topic-word distribution (components_): (10, 40926)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "ec5a6ffa",
+        "outputId": "d305c0a7-8092-4ed1-a2ee-677ab780124a"
+      },
+      "source": [
+        "feature_names = count_vectorizer.get_feature_names_out()\n",
+        "n_top_words = 10\n",
+        "\n",
+        "def print_top_words(model, feature_names, n_top_words):\n",
+        "    for topic_idx, topic in enumerate(model.components_):\n",
+        "        message = f\"Topic #{topic_idx + 1}:\"\n",
+        "        message += \" \".join([feature_names[i]\n",
+        "                              for i in topic.argsort()[:-n_top_words - 1:-1]])\n",
+        "        print(message)\n",
+        "\n",
+        "print(\"Printing top 10 keywords for each LDA topic:\")\n",
+        "print_top_words(lda_model, feature_names, n_top_words)"
+      ],
+      "execution_count": 26,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Printing top 10 keywords for each LDA topic:\n",
+            "Topic #1:armenian turkish db muslim people turkey greek turk village jew\n",
+            "Topic #2:space state government would year law also new may one\n",
+            "Topic #3:system drive would window use one card bit chip know\n",
+            "Topic #4:file image program format jpeg entry color use gif version\n",
+            "Topic #5:would dont think get year one like know time well\n",
+            "Topic #6:one people god would say dont know think even like\n",
+            "Topic #7:maxaxaxaxaxaxaxaxaxaxaxaxaxaxax window server file use widget application key set version\n",
+            "Topic #8:one car like would get also know good im use\n",
+            "Topic #9:available information university research data also new system medical patient\n",
+            "Topic #10:game team goal pt period play st la season new\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "2ecb495c",
+        "outputId": "20d54afe-0920-4a7f-a849-a04a9bb3d1d8"
+      },
+      "source": [
+        "from sklearn.decomposition import NMF\n",
+        "\n",
+        "# Instantiate NMF model\n",
+        "nmf_model = NMF(n_components=n_components, random_state=42, init='nndsvda', tol=1e-4, max_iter=200)\n",
+        "\n",
+        "# Fit the NMF model to the TF-IDF matrix\n",
+        "nmf_model.fit(tfidf_matrix)\n",
+        "\n",
+        "print(f\"NMF model fitted with {n_components} components.\")\n",
+        "print(f\"Shape of topic-word distribution (components_): {nmf_model.components_.shape}\")"
+      ],
+      "execution_count": 27,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "NMF model fitted with 10 components.\n",
+            "Shape of topic-word distribution (components_): (10, 40926)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "82e4fa21",
+        "outputId": "671f1672-b624-4179-ab24-89b1a62de6da"
+      },
+      "source": [
+        "feature_names_tfidf = tfidf_vectorizer.get_feature_names_out()\n",
+        "\n",
+        "print(\"Printing top 10 keywords for each NMF topic:\")\n",
+        "print_top_words(nmf_model, feature_names_tfidf, n_top_words)"
+      ],
+      "execution_count": 28,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Printing top 10 keywords for each NMF topic:\n",
+            "Topic #1:would dont think one like people get thing know im\n",
+            "Topic #2:thanks please email anyone know advance looking hi would address\n",
+            "Topic #3:game team player year hockey baseball win season play fan\n",
+            "Topic #4:drive scsi disk mb hard ide controller floppy meg system\n",
+            "Topic #5:god jesus christian bible christ believe faith sin belief church\n",
+            "Topic #6:window file program do use application version run image problem\n",
+            "Topic #7:key chip encryption clipper phone system government bit algorithm escrow\n",
+            "Topic #8:card monitor driver video color bit mhz mb bus vga\n",
+            "Topic #9:armenian israel people government jew arab muslim israeli state turkish\n",
+            "Topic #10:car bike new price engine mile sale good year dealer\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "4cba6955",
+        "outputId": "71dc4d4c-adb9-408b-e79d-6354735e3138"
+      },
+      "source": [
+        "print(\"Printing top 10 keywords for each LDA topic:\")\n",
+        "print_top_words(lda_model, feature_names, n_top_words)"
+      ],
+      "execution_count": 31,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Printing top 10 keywords for each LDA topic:\n",
+            "Topic #1:armenian turkish db muslim people turkey greek turk village jew\n",
+            "Topic #2:space state government would year law also new may one\n",
+            "Topic #3:system drive would window use one card bit chip know\n",
+            "Topic #4:file image program format jpeg entry color use gif version\n",
+            "Topic #5:would dont think get year one like know time well\n",
+            "Topic #6:one people god would say dont know think even like\n",
+            "Topic #7:maxaxaxaxaxaxaxaxaxaxaxaxaxaxax window server file use widget application key set version\n",
+            "Topic #8:one car like would get also know good im use\n",
+            "Topic #9:available information university research data also new system medical patient\n",
+            "Topic #10:game team goal pt period play st la season new\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "1df6199e",
+        "outputId": "2080caa9-566c-48a4-cc66-b9b9b9b2ab97"
+      },
+      "source": [
+        "print(\"Printing top 10 keywords for each NMF topic:\")\n",
+        "print_top_words(nmf_model, feature_names_tfidf, n_top_words)"
+      ],
+      "execution_count": 32,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Printing top 10 keywords for each NMF topic:\n",
+            "Topic #1:would dont think one like people get thing know im\n",
+            "Topic #2:thanks please email anyone know advance looking hi would address\n",
+            "Topic #3:game team player year hockey baseball win season play fan\n",
+            "Topic #4:drive scsi disk mb hard ide controller floppy meg system\n",
+            "Topic #5:god jesus christian bible christ believe faith sin belief church\n",
+            "Topic #6:window file program do use application version run image problem\n",
+            "Topic #7:key chip encryption clipper phone system government bit algorithm escrow\n",
+            "Topic #8:card monitor driver video color bit mhz mb bus vga\n",
+            "Topic #9:armenian israel people government jew arab muslim israeli state turkish\n",
+            "Topic #10:car bike new price engine mile sale good year dealer\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
